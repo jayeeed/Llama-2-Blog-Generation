@@ -2,6 +2,8 @@ from flask import Flask, render_template, request, jsonify
 from langchain_community.llms import VLLM
 from langchain.chains import LLMChain
 from langchain.prompts import PromptTemplate
+import transformers
+from langchain_community.llms import HuggingFacePipeline
 
 from pymongo import MongoClient
 import requests
@@ -9,28 +11,50 @@ import requests
 app = Flask(__name__)
 
 # Create a client connection
-client = MongoClient("mongodb+srv://xy3d:XgB8JVGTuWGd50kp@cluster0.20iimjx.mongodb.net/?retryWrites=true&w=majority") # replace "mongodb_uri" with your actual MongoDB URI
-
-# Reference the proper database and collection
-db = client["blog"] # replace "mydatabase" with your MongoDB database name
+client = MongoClient("mongodb+srv://xy3d:XgB8JVGTuWGd50kp@cluster0.20iimjx.mongodb.net/?retryWrites=true&w=majority")
+db = client["blog"]
 collection = db["data"]
+
+model_id = 'meta-llama/Llama-2-7b-chat-hf'
+hf_auth = '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'
+
+model_config = transformers.AutoConfig.from_pretrained(
+    model_id,
+    token=hf_auth
+)
+
+model = transformers.AutoModelForCausalLM.from_pretrained(
+    model_id,
+    trust_remote_code=True,
+    config=model_config,
+    device_map='auto',
+    token=hf_auth
+)
+model.eval()
+
+tokenizer = transformers.AutoTokenizer.from_pretrained(
+    model_id,
+    token=hf_auth
+)
+
+generate_text = transformers.pipeline(
+    model=model, tokenizer=tokenizer,
+    return_full_text=True,
+    task='text-generation',
+    temperature=0.1,
+    max_new_tokens=4098,
+    repetition_penalty=1.1
+)
 
 # Loading the model
 def load_llm(max_tokens, prompt_template):
-    llm = VLLM(model="mistralai/Mistral-7B-v0.1",
-               trust_remote_code=True,  # mandatory for hf models
-               max_new_tokens=1024,
-               top_k=10,
-               top_p=0.95,
-               temperature=0.7,
-               tensor_parallel_size=2,
-    )
+
+    llm = HuggingFacePipeline(pipeline=generate_text)
 
     llm_chain = LLMChain(
         llm=llm,
         prompt=PromptTemplate.from_template(prompt_template)
     )
-    print(llm_chain)
     return llm_chain
 
 def get_src_original_url(query):
@@ -59,11 +83,14 @@ def get_src_original_url(query):
         return None
 
 def generate_article(user_input, image_input):
-    prompt_template = """You are a JavaScript teacher and your task is to write a fundamental article on the given topic: "${user_input}". 
-        The article must be under 900 words and should cover the topic comprehensively. 
-        Ensure to include examples, explanations, and best practices to help learners understand the concept thoroughly.         
-            """
-    llm_call = load_llm(max_tokens=1024, prompt_template=prompt_template)
+    B_INST, E_INST = "[INST]", "[/INST]"
+    B_SYS, E_SYS = "<<SYS>>\n", "\n<</SYS>>\n\n"
+
+    prompt_template = B_SYS + """You are a JavaScript teacher and your task is to write a fundamental article on the given topic: "${user_input}".
+    The article must be above 1000 words and under 2000 words and should cover the topic comprehensively.
+    Ensure to include examples, explanations, and best practices to help learners understand the concept thoroughly.""" + E_SYS
+
+    llm_call = load_llm(max_tokens=4098, prompt_template=prompt_template)
     result = llm_call.invoke(user_input)
     return result
 

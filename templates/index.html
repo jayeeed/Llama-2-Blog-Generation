@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Articles</title>
+    <style>
+      body {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+        margin: 0;
+        padding: 0;
+        text-align: center;
+      }
+      div.article {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        margin-top: 35em;
+        margin-bottom: 10em;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Articles from mongodb</h1>
+
+    {% for entry in data %}
+    <div class="article">
+      <h1>{{ entry.topic }}</h1>
+      <p>
+        <img
+          src="{{ entry.image_url }}"
+          alt="Article Image"
+          style="width: 40%; height: auto"
+        />
+      </p>
+      <p style="width: 60%; height: auto">{{ entry.article }}</p>
+    </div>
+    {% endfor %}
+  </body>
+</html>
