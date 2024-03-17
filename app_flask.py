@@ -55,6 +55,7 @@ def load_llm(max_tokens, prompt_template):
         llm=llm,
         prompt=PromptTemplate.from_template(prompt_template)
     )
+    print("Chain Received!!")
     return llm_chain
 
 def get_src_original_url(query):
